@@ -1,0 +1,217 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  ArtifactBucket:
+    Type: String
+    Description: Name of the bucket for the lambda artifacts
+  PutBirthdayArtifact:
+    Type: String
+    Description: Path to the PutBirthday lambda artifact
+  BirthdaybotDeploymentStageName:
+    Type: String
+    Default: latest
+    Description: Name of the API stage
+
+Resources:
+  PutBirthdayLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: AllowCloudwatchPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:*
+            Resource: arn:aws:logs:*:*:*
+
+  PutBirthday:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Handler: "main"
+      Role:
+        Fn::GetAtt:
+          - "PutBirthdayLambdaRole"
+          - "Arn"
+      Code:
+        S3Bucket: !Ref ArtifactBucket
+        S3Key: !Ref PutBirthdayArtifact
+      Runtime: "go1.x"
+
+  BirthdaybotApiRole:
+    DependsOn: PutBirthday
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: apigateway.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+      - PolicyName: AllowCloudwatchPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:*
+            Resource: arn:aws:logs:*:*:*
+
+  PutBirthdayInvokePolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: AllowPutBirthdayInvoke
+      Roles:
+      - !Ref BirthdaybotApiRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Sid: cfn0
+          Effect: Allow
+          Action:
+          - lambda:InvokeFunction
+          Resource: !GetAtt PutBirthday.Arn
+
+  BirthdaybotApiAccount:
+    Type: "AWS::ApiGateway::Account"
+    DependsOn:
+    - BirthdaybotApiRole
+    Properties:
+      CloudWatchRoleArn: !GetAtt BirthdaybotApiRole.Arn
+
+  BirthdaybotApi:
+    Type: "AWS::ApiGateway::RestApi"
+    Properties:
+      Name: "BirthdaybotAPI"
+      Description: "Birthdaybot API"
+      Body:
+        swagger: "2.0"
+        info:
+          description: "Birthdaybot API Definition"
+          version: "1.0.0"
+          title: "Birthdaybot"
+          contact:
+            email: "jan@ruken.pw"
+          license:
+            name: "MIT"
+            url: "https://opensource.org/licenses/MIT"
+        host: "birthdaybot.in.fkn.space"
+        basePath: "/v1"
+        schemes:
+        - "https"
+        paths:
+          /birthdays/{username}:
+            parameters:
+            - name: "username"
+              in: "path"
+              description: "chat username"
+              required: true
+              type: "string"
+            put:
+              tags:
+              - "birthday"
+              summary: "Create or update birthday"
+              description: ""
+              operationId: "createUpdateBirthday"
+              consumes:
+              - "application/json"
+              produces:
+              - "application/json"
+              parameters:
+              - in: "body"
+                name: "body"
+                description: "Birthday to be added or updated"
+                required: true
+                schema:
+                  $ref: "#/definitions/Birthday"
+              responses:
+                "200":
+                  description: "Updated birthday"
+                "201":
+                  description: "Created birthday"
+                "404":
+                  description: "Birthday not found"
+                "422":
+                  description: "Malformed body"
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: PUT
+                uri: !Sub
+                  - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaArn}/invocations"
+                  - { LambdaArn: !GetAtt PutBirthday.Arn }
+              security:
+                - api_key: []
+        securityDefinitions:
+          api_key:
+            type: "apiKey"
+            name: "x-api-key"
+            in: "header"
+        definitions:
+          Birthday:
+            "$schema": "http://json-schema.org/draft-04/schema#"
+            title: "Birthday"
+            type: "object"
+            required:
+            - "birthday"
+            properties:
+              username:
+                type: "string"
+              birthday:
+                type: "string"
+                format: "date"
+
+
+  BirthdaybotDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Description: Deployment of Birthdaybot API
+    Properties:
+      RestApiId: !Ref BirthdaybotApi
+      StageName: !Ref BirthdaybotDeploymentStageName
+
+  BirthdaybotApiUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    Properties:
+      UsagePlanName: BirthdaybotApiUsagePlan
+      Quota:
+        Limit: 150
+        Period: MONTH
+
+  BirthdaybotApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name: BirthdaybotApiKey
+      StageKeys:
+        - RestApiId: !Ref BirthdaybotApi
+          StageName: !Ref BirthdaybotDeploymentStageName
+
+  BirthdaybotUsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref BirthdaybotApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref BirthdaybotApiUsagePlan
+
+  PutBirthdayPermission:
+    Type: "AWS::Lambda::Permission"
+    DependsOn:
+    - BirthdaybotApi
+    - PutBirthday
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt PutBirthday.Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Join [ "", [ "arn:aws:execute-api:", !Ref "AWS::Region", ":", !Ref "AWS::AccountId", ":", !Ref BirthdaybotApi, "*/*" ] ]

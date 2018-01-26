@@ -1,0 +1,11 @@
+template_path: templates/service.yaml
+
+#hooks:
+  #before_create:
+    #- !cmd "cd lambdas/put_birthday && make upload"
+    #before_update:
+    #- !cmd "cd lambdas/put_birthday && make upload"
+
+parameters:
+  ArtifactBucket: !stack_output deployment::DeploymentBucketName
+  PutBirthdayArtifact: put_birthday/lambda.zip
