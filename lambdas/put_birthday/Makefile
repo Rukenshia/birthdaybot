@@ -20,6 +20,9 @@ upload: artifact
 invoke:
 	curl -X PUT -H 'Content-Type: application/json' -H 'X-Api-Key: $(API_KEY)' -d '{"birthday": "2017-02-01"}' $(BASE_URL)/v1/birthdays/makefile_invoke
 
+invoke_fail:
+	curl -X PUT -H 'Content-Type: application/json' -H 'X-Api-Key: $(API_KEY)' -d '{"birthday": 123}' $(BASE_URL)/v1/birthdays/makefile_invoke
+
 clean:
 	rm -f $(BINARY_NAME) lambda.zip
 
