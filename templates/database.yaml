@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  DatabaseName:
+    Description: Name of the DynamoDB
+    Type: String
+    Default: birthdays
+
+Resources:
+  BirthdaysDatabase:
+    Type: "AWS::DynamoDB::Table"
+    Properties:
+      TableName: !Ref DatabaseName
+      AttributeDefinitions:
+      - AttributeName: "Username"
+        AttributeType: "S"
+      KeySchema:
+      - AttributeName: "Username"
+        KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+Outputs:
+  BirthdaysDatabaseArn:
+    Description: Birthdays Database DynamoDB Arn
+    Value: !GetAtt BirthdaysDatabase.Arn
+  BirthdaysDatabaseName:
+    Description: Name of the DynamoDB
+    Value: !Ref DatabaseName
