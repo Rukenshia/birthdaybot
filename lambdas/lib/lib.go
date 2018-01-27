@@ -9,6 +9,12 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 )
 
+// Birthday is the request body. the Username is optional because it is filled from the path parameter
+type Birthday struct {
+	Birthday string
+	Username string `json:",omitempty"`
+}
+
 // NewResponse creates a new API Gateway Response. If marshalling fails, it returns with the error.
 func NewResponse(status int, body interface{}) (events.APIGatewayProxyResponse, error) {
 	data, err := json.Marshal(body)

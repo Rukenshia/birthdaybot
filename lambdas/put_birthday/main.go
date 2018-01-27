@@ -15,18 +15,12 @@ import (
 	"github.com/Rukenshia/birthdaybot/lambdas/lib"
 )
 
-// PutBirthdayBody is the request body. the Username is optional because it is filled from the path parameter
-type PutBirthdayBody struct {
-	Birthday string
-	Username string `json:",omitempty"`
-}
-
 // Handler handles the Amazon API Gateway Event
 func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	log.Infof("Processing Lambda request %s", request.RequestContext.RequestID)
 	log.Debugf("Request body: %s", request.Body)
 
-	var body PutBirthdayBody
+	var body lib.Birthday
 	if err := json.Unmarshal([]byte(request.Body), &body); err != nil {
 		log.Errorf("JSON unmarshal failed: %v", err)
 		return lib.NewJsonResponse(400, "Invalid body. Expected JSON")
