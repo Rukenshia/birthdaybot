@@ -1,0 +1,24 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Resources:
+  BirthdaybotKmsKey:
+    Type: "AWS::KMS::Key"
+    Properties:
+      Description: "Birthdaybot KMS Key for Lamdba Envrionment"
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: "Allow"
+          Principal:
+            AWS:
+              - Fn::Sub:
+                  - "arn:aws:iam::${AWS::AccountId}:root"
+                  - {}
+          Action:
+            - "kms:*"
+          Resource: "*"
+
+Outputs:
+  BirthdaybotKmsKeyArn:
+    Description: KMS Key Arn used for Lambda Env Encryption
+    Value: !GetAtt BirthdaybotKmsKey.Arn

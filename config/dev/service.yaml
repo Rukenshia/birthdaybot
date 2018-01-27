@@ -1,13 +1,18 @@
 template_path: templates/service.yaml
 
-hooks:
-  before_create:
-  - !cmd "cd lambdas/put_birthday && make artifact"
-  before_update:
-  - !cmd "cd lambdas/put_birthday && make upload"
+# hooks:
+#   before_create:
+#     - !cmd "cd lambdas/put_birthday && make artifact"
+#     - !cmd "cd lambdas/process_birthdays && make artifact"
+#   before_update:
+#     - !cmd "cd lambdas/put_birthday && make upload"
+#     - !cmd "cd lambdas/process_birthdays && make artifact"
 
 parameters:
   ArtifactBucket: !stack_output deployment::DeploymentBucketName
   PutBirthdayArtifact: put_birthday/lambda.zip
+  ProcessBirthdaysArtifact: put_birthday/lambda.zip
   BirthdaysDatabaseArn: !stack_output database::BirthdaysDatabaseArn
   BirthdaysDatabaseName: !stack_output database::BirthdaysDatabaseName
+  BirthdaybotKmsKeyArn: !stack_output encryption::BirthdaybotKmsKeyArn
+  WebhookUrl: "AQICAHhavxItRk46L7PNOLIWTzfOZK0BMd5VNZjkC0+HqGf4rgFvQU/M7zERk23IEeQyqdqEAAAAYjBgBgkqhkiG9w0BBwagUzBRAgEAMEwGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMVwBBf+etAl11tF8AAgEQgB9vKBxQHalKgtlceGr0AYQbfvUatIQbeYg/xVZjWoVS"

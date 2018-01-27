@@ -7,6 +7,9 @@ Parameters:
   PutBirthdayArtifact:
     Type: String
     Description: Path to the PutBirthday lambda artifact
+  ProcessBirthdaysArtifact:
+    Type: String
+    Description: Path to the ProcessBirthdays lambda artifact
   BirthdaybotDeploymentStageName:
     Type: String
     Default: latest
@@ -17,6 +20,12 @@ Parameters:
   BirthdaysDatabaseName:
     Type: String
     Description: Name for the DynamoDB
+  BirthdaybotKmsKeyArn:
+    Type: String
+    Description: ARN for the KMS Key used for Lambda Environment
+  WebhookUrl:
+    Type: String
+    Description: ENCRYPTED Webhook URL
 
 Resources:
   PutBirthdayLambdaRole:
@@ -50,14 +59,67 @@ Resources:
             - dynamodb:PutItem
             Resource: !Ref BirthdaysDatabaseArn
 
+  ProcessBirthdaysLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName: AllowCloudwatchPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:*
+            Resource: arn:aws:logs:*:*:*
+      - PolicyName: AllowDynamoDbScan
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - dynamodb:Scan
+            Resource: !Ref BirthdaysDatabaseArn
+      - PolicyName: AllowKmsDecrypt
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - kms:Decrypt
+            Resource: !Ref BirthdaybotKmsKeyArn
+
+  ProcessBirthdays:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Handler: "main"
+      FunctionName: ProcessBirthdays
+      Role: !GetAtt ProcessBirthdaysLambdaRole.Arn
+      Code:
+        S3Bucket: !Ref ArtifactBucket
+        S3Key: !Ref ProcessBirthdaysArtifact
+      Runtime: "go1.x"
+      Environment:
+        Variables:
+          EncryptionKeyArn: !Ref BirthdaybotKmsKeyArn
+          WebhookUrl: !Ref WebhookUrl
+          DatabaseName: !Ref BirthdaysDatabaseName
+
   PutBirthday:
     Type: "AWS::Lambda::Function"
     Properties:
       Handler: "main"
-      Role:
-        Fn::GetAtt:
-          - "PutBirthdayLambdaRole"
-          - "Arn"
+      FunctionName: PutBirthday
+      Role: !GetAtt PutBirthdayLambdaRole.Arn
       Code:
         S3Bucket: !Ref ArtifactBucket
         S3Key: !Ref PutBirthdayArtifact
