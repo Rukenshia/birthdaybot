@@ -16,6 +16,13 @@ import (
 func Handler(event events.CloudWatchEvent) (interface{}, error) {
 	rlog := log.WithField("EventId", event.ID).WithField("DatabaseName", os.Getenv("DatabaseName"))
 
+	url, err := lib.DecryptEnvVar("", "WebhookUrl")
+	if err != nil {
+		rlog.Errorf("Decrypting WebhookUrl failed: %v", err)
+		return nil, err
+	}
+	log.Debugf("Decrypted WebhookUrl: %s", url)
+
 	rlog.Infof("Handling CloudWatch event")
 
 	dyndb, err := lib.NewDynamoDbClient()
@@ -45,6 +52,5 @@ func Handler(event events.CloudWatchEvent) (interface{}, error) {
 
 func main() {
 	log.SetLevel(log.DebugLevel)
-	Handler(events.CloudWatchEvent{ID: "x"})
 	lambda.Start(Handler)
 }
