@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"time"
 
@@ -54,6 +53,10 @@ func Handler(event events.CloudWatchEvent) (interface{}, error) {
 	}
 
 	today := time.Now()
+	nextWeek := today.AddDate(0, 0, 7)
+
+	birthdaysToday := []string{}
+	birthdaysInAWeek := []string{}
 
 	for _, birthday := range birthdays {
 		date, err := time.Parse("2006-01-02", birthday.Birthday)
@@ -66,10 +69,15 @@ func Handler(event events.CloudWatchEvent) (interface{}, error) {
 		rlog.Debugf("%d == %d && %d == %d", date.Month(), today.Month(), date.Day(), today.Day())
 
 		if date.Month() == today.Month() && date.Day() == today.Day() {
-			if err := SendRocketchatMessage(url, fmt.Sprintf("@%s", birthday.Username), "whoooo!"); err != nil {
-				rlog.WithField("Username", birthday.Username).Warnf("Could not send Rocket.Chat notification: %v", err)
-			}
+			birthdaysToday = append(birthdaysToday, birthday.Username)
+		} else if date.Month() == nextWeek.Month() && date.Day() == nextWeek.Day() {
+			birthdaysInAWeek = append(birthdaysInAWeek, birthday.Username)
 		}
+
+	}
+
+	if len(birthdaysToday) > 0 {
+		log.Debugf("%v", SendRocketchatMessage(url, "@jan", GetRandomTodayBirthdayMessage(birthdaysToday)))
 	}
 
 	return nil, nil
